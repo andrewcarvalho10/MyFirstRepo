@@ -1,0 +1,40 @@
+---
+title: "pooled analysis of PK data fro Indometh"
+author: "Andrew Carvalho"
+date: '2024-03-15'
+output: html_document
+---
+## Packages
+```{r, echo=FALSE}
+knitr::opts_chunk$set(comment='.', message=FALSE, fig.path="figures/indo-", 
+                      cache=TRUE, autodep=TRUE)
+options(mrgsolve.soloc="build", dplyr.summarise.inform = FALSE)
+```
+
+```{r}
+library(tidyverse)
+theme_set(theme_bw())
+library(mrgsolve)
+```
+
+
+
+## load indamethacin dataset
+```{r}
+data("Indometh")
+```
+
+#take a peak
+
+
+```{r}
+head(Indometh)
+
+count(Indometh, Subject)
+
+ggplot(Indometh, aes(time, conc, group = Subject)) +
+  geom_point() +
+  scale_y_continuous(trans ="log", breaks = 10^seq(-4,4))
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

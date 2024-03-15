@@ -4,6 +4,7 @@ library(mrgsolve)
 library(dplyr)
 library(magrittr)
 library(modmrg)
+library(nlme)
 data()
 mod <- mread("pk1cmt", modlib())
 view("pk1cmt", modlib())
@@ -36,4 +37,4 @@ data <- expand.ev(amt=c(100,300,1000),
 data %<>% mutate(rate = amt/10)
 data
 # simulate
-mod %>% data_set(data) %>% mrgsim %>% plot
+mod %>% data_set(data) %>% mrgsim %>%  plot
