@@ -38,3 +38,123 @@ ggplot(Indometh, aes(time, conc, group = Subject)) +
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+This is individual-level data, but we are going to do naive pooled 
+analysis. 
+# Assemble Data
+```{r}
+data <- readRDS("C:/Users/AndrewCarvalho/OneDrive - Apellis Pharmaceuticals, Inc/Documents/R/r-pharma-pkpd-2020-master/content/data/indometh.RDS")
+
+head(data)
+```
+#load a pk model
+
+```{r}
+mod <- modlib("PK1")
+
+param(mod)
+```
+# Now let's estimate some params
+
+```{r}
+theta <- log(c(CL = 1, V= 100))
+```
+
+```{r}
+names(theta)
+```
+#Create an objective function function
+
+- For starters, just do OLS estimation
+- Note that we _need_ to name the parameters (`p`)
+    - Parameter updates require names in `mrgsolve`
+    - Generally, don't expect `p` to retain any names that you might
+    pass in through the initial estimates
+- We also pass in the `data` and the dependent variable (`dv`)
+
+```{r}
+obj <- function(p, theta, data, dv ="conc", pred = FALSE){
+  
+  names(p) <- names(theta)
+  
+  p <- lapply(p,exp)
+  
+  mod <- param(mod, p)
+  
+  out <- mrgsim_q(mod, data, output="df")
+  
+  if(pred) return(out)
+  
+  sqr <- (out[["CP"]] - data[[dv]])^2
+  
+  sum(sqr, na.rm=TRUE)
+}
+```
+# Fit with one-compartment model
+
+- First generate some initial estimates
+- These _need_ to be named in a way that is consistent with
+the model we are using
+- I usually run a test with the objective function function to 
+make sure the logic works out
+```{r}
+obj(theta,theta,data)
+```
+```{r}
+fit <- optim(par = theta, fn=obj, theta = theta, data=data)
+```
+
+- And generate some predictions based on the final estimates
+```{r}
+pred <- obj(fit$par, theta, data, pred = TRUE)
+
+data$pred <- pred$CP
+
+head(data)
+```
+#make aplot of the output ou just generated
+
+```{r}
+ggplot(data = data) +
+  geom_point(aes(time,conc)) +
+  scale_y_log10() +
+  geom_line(aes(time,pred), col = "forest green", lwd =1.0)
+```
+# Fit doesnt look great so try fitting inometh data woth a 2cmpt model
+
+```{r}
+mod <- modlib("pk2")
+```
+```{r}
+param(mod)
+```
+#set the initial estimates for the 2-comp model
+
+```{r}
+theta <- log(c(CL = 2, V2 = 50, Q = 10, V3 = 50))
+
+```
+# Fit
+
+```{r}
+fit <- optim(par = theta, fn=obj, theta = theta, data=data)
+```
+
+# now generate predictions on the fitted "final" estimates
+
+```{r}
+pred <- obj(fit$par, theta, data, pred = TRUE)
+
+data$pred <- pred$CP
+
+
+  ggplot(data = data) +
+  geom_point(aes(time,conc)) +
+  scale_y_log10() +
+  geom_line(aes(time,pred), col = "forest green", lwd =1.0)
+  
+  head(data)
+  
+```
+
