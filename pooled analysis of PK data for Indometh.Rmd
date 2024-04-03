@@ -103,6 +103,7 @@ obj(theta,theta,data)
 ```
 ```{r}
 fit <- optim(par = theta, fn=obj, theta = theta, data=data)
+head (fit)
 ```
 
 - And generate some predictions based on the final estimates
@@ -113,7 +114,7 @@ data$pred <- pred$CP
 
 head(data)
 ```
-#make aplot of the output ou just generated
+#make aplot of the output you just generated
 
 ```{r}
 ggplot(data = data) +
@@ -128,6 +129,8 @@ mod <- modlib("pk2")
 ```
 ```{r}
 param(mod)
+
+see(mod)
 ```
 #set the initial estimates for the 2-comp model
 
@@ -139,6 +142,8 @@ theta <- log(c(CL = 2, V2 = 50, Q = 10, V3 = 50))
 
 ```{r}
 fit <- optim(par = theta, fn=obj, theta = theta, data=data)
+
+head(fit)
 ```
 
 # now generate predictions on the fitted "final" estimates
@@ -156,5 +161,197 @@ data$pred <- pred$CP
   
   head(data)
   
+```
+
+
+```{r}
+ mod %>% ev(amt = 25, cmt =2) %>% 
+  mrgsim() %>% plot()
+
+```
+
+```{r}
+
+#change model parmaters from optimization above
+mod <- param(mod, CL = 7.905, V2 = 8.9, Q = 10, V3 = 19.527)
+# then view updated model 
+param(mod)
+
+mod %>% ev(amt = 25, cmt =2) %>% 
+  mrgsim() %>% plot()
+```
+
+
+```{r}
+#  The piped code I started with probably works nicely for some people, but it’s not my preferred way to do this. The way I think of these things, a simulation has three main inputs (model object, event schedule, simulation times), and I find the code easier to read when these three inputs are passed as three separate arguments. this would normally be the project folder
+
+
+#dir <- fs::path_package("mrgsolve", "models")
+
+# define model, events, and times
+
+events <- ev_expand(amt = 100, ii = 24, addl = 9, cmt= 2)
+times  <- tgrid(start = 0, end = 480, delta = 0.1)
+```
+```{r}
+tibble::as_tibble(events)
+```
+
+
+```{r}
+# run simulation
+out <- mrgsim_d(x = mod, data = events, tgrid = times)
+
+plot(out)
+  
+```
+## do a ggplot of simlation in stead of the plot() function
+The plot method allows you to customise the plot in a fairly flexible way, but there are some limits to what you can do with this approach. It’s not a big drawback though. If additional customisation is needed it’s pretty easy to convert the output to a tibble and then using ggplot2 to create the specific visualisation you want:
+
+
+```{r}
+# Adjust theme to make pretty plot
+#theme_set(theme_bw(base_size=25))
+
+library(ggplot2)
+
+out %>% 
+  tibble::as_tibble() %>% 
+  tidyr::pivot_longer(
+    cols = c(EV, CENT, CP), 
+    names_to = "variable", 
+    values_to = "value"
+  ) %>%  
+  dplyr::mutate(
+    variable = dplyr::case_when(
+      variable == "EV" ~ "Gut amount",
+      variable == "CENT" ~ "Central amount",
+      variable == "CP" ~ "Central concentration"
+    )
+  ) %>% 
+  ggplot(aes(time, value)) + 
+  geom_line() +
+  facet_wrap(~ variable, scales = "free_y") + 
+  theme_bw() +
+  theme(strip.background = element_rect(fill = "white")) + 
+  labs(
+    title = "Drug amounts and concentrations over time",
+    x = "Time (hours)",
+    y = "mg or mg/L"
+  )
+   
+
+```
+
+```{r}
+# define model, events, and times
+
+
+events <- ev_expand(amt = 25, cmt =2 )
+times  <- tgrid(start = 0, end = 8, delta = 0.1)
+```
+
+
+
+```{r}
+out <- mrgsim_d(x = mod, data = events, tgrid = times)
+out %>% 
+  tibble::as_tibble() 
+```
+```{r}
+data(Indometh)
+
+head(Indometh)
+
+count(Indometh, Subject)
+
+```
+#try to combine in sim and observed data in GGPlot
+
+
+
+```{r}
+library(ggplot2)
+out %>% 
+  tibble::as_tibble() %>% 
+  
+ggplot  +
+  geom_point(data = tibble, mapping = aes( x = time, y = Plasma_mL), color = "Light Slate Blue")  + 
+  
+  geom_point(data = Indometh, mapping = aes( x= time, y = conc), color = "dark Orange") +
+  #geom_line() +
+  #facet_wrap(~ variable, scales = "free_y") + 
+  theme_bw() +
+  theme(strip.background = element_rect(fill = "white")) + 
+  labs(
+    title = "Drug amounts and concentrations over time",
+    x = "Time (hours)",
+    y = "mg or mg/L"
+  )
+
+```
+
+
+```{r}
+
+# now try to model theophyline PK data!!!
+head(Theoph) 
+```
+```{r}
+
+count(Theoph, Subject)
+
+ggplot(data = Theoph, mapping = aes(x= Time, y= conc))+
+         geom_smooth() +
+  geom_point()
+```
+#load a model
+
+```{r}
+mod <- mread("popPK1cmpt.cpp", quiet = TRUE)
+param(mod)
+
+```
+# define model, events, and times
+
+```{r}
+events <- ev_expand(amt = 4*70, ii = 24, addl = 0, ID = 1:12)
+times  <- tgrid(start = 0, end = 24, delta = 0.5)
+```
+
+#Simlate events
+```{r}
+out <- mrgsim_d(x = mod, data = events, tgrid = times)
+out %>% 
+  tibble::as_tibble() 
+```
+```{r}
+#change model parmaters from optimization above
+mod <- param(mod, TVKA = 0.5, TVCL = 2, TVV = 24)
+# then view updated model 
+param(mod)
+```
+```{r}
+out <- mrgsim_d(x = mod, data = events, tgrid = times) 
+plot(out)
+```
+```{r}
+library(ggplot2)
+out %>% 
+  tibble::as_tibble() %>% 
+  
+ggplot  +
+  geom_point(data = tibble, mapping = aes( x = time, y = CP), color = "Light Slate Blue")  + 
+  
+  geom_point(data = Theoph, mapping = aes( x= Time, y = conc), color = "dark Orange") +
+  #geom_line() +
+  #facet_wrap(~ variable, scales = "Free_Y") + 
+  theme_bw() +
+  theme(strip.background = element_rect(fill = "white")) + 
+  labs(
+    title = "Drug amounts and concentrations over time",
+    x = "Time (hours)",
+    y = "mg or mg/L"
+  )
 ```
 
